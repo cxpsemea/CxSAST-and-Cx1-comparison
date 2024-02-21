@@ -101,6 +101,7 @@ function getSASTQueries($server, $token, $errorMessage){
 }
 
 function getCx1QueryDetails( $server, $token, $scope, $path, $errormessage ) {
+    log "Get details for $scope $path"
     $safe_path = $path.Replace( "/", "%2f" )
     $uri = "$($server)/api/cx-audit/queries/$scope/$safe_path"
     return req $uri "GET" $token $errormessage
@@ -482,7 +483,7 @@ $Cx1Queries | foreach-object {
             CorpSourceHash = ""
         }
 
-		if ( -not $_.isExecutable ) {
+		if ( -not $_.isExecutable -and -not $CorpOnly ) {
 			$q = getCx1QueryDetails $Cx1URL $Cx1Token "Cx" $Cx1QueriesByID["$($_.Id)"].Path "Failed to get details for Cx query $($Cx1QueriesByID[$astID].Path)"
 			$Cx1QueriesByID[$astID].Severity = sevstr $q.Severity
 		}
@@ -529,6 +530,11 @@ $Cx1Queries | foreach-object {
         $Cx1QueriesByID["$($_.Id)"].CorpSeverity = sevstr $q.Severity
         $Cx1QueriesByID["$($_.Id)"].CorpName = $_.Name
 		$Cx1QueriesByID["$($_.Id)"].CorpSourceHash = hashstr $q.Source
+
+        if ( $CorpOnly ) {
+            $q = getCx1QueryDetails $Cx1URL $Cx1Token "Cx" $Cx1QueriesByID["$($_.Id)"].Path "Failed to get details for Cx query $($Cx1QueriesByID[$astID].Path)"
+			$Cx1QueriesByID[$astID].Severity = sevstr $q.Severity
+        }
     }
 }
 
