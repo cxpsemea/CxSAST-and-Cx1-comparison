@@ -59,7 +59,9 @@ function getCx1PresetQueries( $server, $token, $errormessage ) {
 } 
 function getCx1QueryMappings( $server, $token, $errormessage ) {
     $uri = "$($server)/api/queries/mappings"
-    return req $uri "GET" $token $errormessage
+    try {
+        return req $uri "GET" $token $errormessage
+    } catch {}
 } 
 
 function getSASTQueries($server, $token, $errorMessage){
