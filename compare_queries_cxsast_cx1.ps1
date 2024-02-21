@@ -41,10 +41,6 @@ function req($uri, $method, $token, $errorMessage, $body){
         }
         return $resp
     } catch {
-        log $_
-        $value = $_.Exception.Response.StatusCode.value__
-        log "StatusCode: ${value}" 
-        log "Request body was: $($body | ConvertTo-Json)"
         throw $errorMessage
     }
 }
@@ -600,11 +596,13 @@ foreach ( $row in $SASTQueriesByID.GetEnumerator() ) {
         $astID = "$($row.Value.AstID)"
 
         if ( $Cx1QueriesByID.ContainsKey($astID) ) {
-            if ( $Cx1QueriesByID[$astID].Severity -eq "" -and ($CorpOnly -and $row.Value.CorpID -ne "") ) {
+            if ( $Cx1QueriesByID[$astID].Severity -eq "" -and (-Not $CorpOnly -or $row.Value.CorpID -ne "") ) {
                 try {
                     $q = getCx1QueryDetails $Cx1URL $Cx1Token "Cx" $Cx1QueriesByID[$astID].Path "Failed to get details for Cx query $($Cx1QueriesByID[$astID].Path)"
                     $Cx1QueriesByID[$astID].Severity = sevstr $q.Severity
-                } catch {}
+                } catch {
+                    log $_.Exception
+                }
             }
             if ( $row.Value.Mapped ) {
 				$Cx1QueriesByID[$astID].Mapped = $true
