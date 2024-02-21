@@ -43,9 +43,7 @@ function req($uri, $method, $token, $errorMessage, $body){
     } catch {
         log $_
         $value = $_.Exception.Response.StatusCode.value__
-        $description = $_.Exception.Response.StatusDescription
         log "StatusCode: ${value}" 
-        log "StatusDescription: ${description}" 
         log "Request body was: $($body | ConvertTo-Json)"
         throw $errorMessage
     }
@@ -537,7 +535,8 @@ $Cx1Queries | foreach-object {
 
         if ( $CorpOnly ) {
             $q = getCx1QueryDetails $Cx1URL $Cx1Token "Cx" $Cx1QueriesByID["$($_.Id)"].Path "Failed to get details for Cx query $($Cx1QueriesByID["$($_.Id)"].Path)"
-            $Cx1QueriesByID["$($_.Id)"].Severity = sevstr $q.Severity
+            $sev = sevstr $q.Severity
+            $Cx1QueriesByID["$($_.Id)"].Severity = $sev
         }
     }
 }
