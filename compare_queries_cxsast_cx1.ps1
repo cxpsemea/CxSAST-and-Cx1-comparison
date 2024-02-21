@@ -215,12 +215,8 @@ function hashstr( $str ) {
     if ( $str -eq "" ) { 
         return ""
     } else {
-        try {
-            $mystream = [IO.MemoryStream]::new([byte[]][char[]]$str)
-            (Get-FileHash -InputStream $mystream -Algorithm SHA256).Hash
-        } catch {
-            Write-Output "Error hashing string: $str"
-        }
+        $mystream = [IO.MemoryStream]::new([byte[]][char[]]$str)
+        (Get-FileHash -InputStream $mystream -Algorithm SHA256).Hash
     }
 }
 
