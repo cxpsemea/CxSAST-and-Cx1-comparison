@@ -650,6 +650,10 @@ foreach ( $row in $FinalMapping ) {
     }
 }
 
+$blah = ($QueryMappings.mappings | Sort-Object -Property { [int] $_.sastID } )
+$QueryMappings.mappings = $blah
+
+
 $QueryMappings | ConvertTo-Json | Out-File "mappings.json"
 if ( $QueryMappings.mappings.length -ne $QueryMappingsCount ) {
     Write-Output "Generated a mappings.json file with $($QueryMappings.mappings.length - $QueryMappingsCount) custom queries mapped"
