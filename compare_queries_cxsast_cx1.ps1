@@ -628,7 +628,7 @@ foreach ( $row in $Cx1QueriesByID.GetEnumerator() ) {
 
 
 $ctr = 0
-foreach ( $row in $FinalMapping | Sort-Object { [int]($_.SAST_QueryID) ) {
+foreach ( $row in $FinalMapping | Sort-Object { [int]($_.SAST_QueryID) } ) {
     if ( ($row.Cx1_CorpSourceHash -ne "" -or $row.SAST_CorpSourceHash -ne "") -or -not $CorpOnly ) {
         if ( $ctr -eq 0 ) {
             Export-Csv -InputObject $row -Path $outfile
