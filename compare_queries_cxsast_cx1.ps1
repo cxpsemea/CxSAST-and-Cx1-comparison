@@ -59,9 +59,7 @@ function getCx1PresetQueries( $server, $token, $errormessage ) {
 } 
 function getCx1QueryMappings( $server, $token, $errormessage ) {
     $uri = "$($server)/api/queries/mappings"
-    try {
-        return req $uri "GET" $token $errormessage
-    } catch {}
+    return req $uri "GET" $token $errormessage
 } 
 
 function getSASTQueries($server, $token, $errorMessage){
@@ -536,9 +534,11 @@ $Cx1Queries | foreach-object {
 		$Cx1QueriesByID["$($_.Id)"].CorpSourceHash = hashstr $q.Source
 
         if ( $CorpOnly ) {
-            $q = getCx1QueryDetails $Cx1URL $Cx1Token "Cx" $Cx1QueriesByID["$($_.Id)"].Path "Failed to get details for Cx query $($Cx1QueriesByID["$($_.Id)"].Path)"
-            $sev = sevstr $q.Severity
-            $Cx1QueriesByID["$($_.Id)"].Severity = $sev
+            try {
+                $q = getCx1QueryDetails $Cx1URL $Cx1Token "Cx" $Cx1QueriesByID["$($_.Id)"].Path "Failed to get details for Cx query $($Cx1QueriesByID["$($_.Id)"].Path)"
+                $sev = sevstr $q.Severity
+                $Cx1QueriesByID["$($_.Id)"].Severity = $sev
+            } catch {}
         }
     }
 }
@@ -601,8 +601,10 @@ foreach ( $row in $SASTQueriesByID.GetEnumerator() ) {
 
         if ( $Cx1QueriesByID.ContainsKey($astID) ) {
             if ( $Cx1QueriesByID[$astID].Severity -eq "" ) {
-                $q = getCx1QueryDetails $Cx1URL $Cx1Token "Cx" $Cx1QueriesByID[$astID].Path "Failed to get details for Cx query $($Cx1QueriesByID[$astID].Path)"
-                $Cx1QueriesByID[$astID].Severity = sevstr $q.Severity
+                try {
+                    $q = getCx1QueryDetails $Cx1URL $Cx1Token "Cx" $Cx1QueriesByID[$astID].Path "Failed to get details for Cx query $($Cx1QueriesByID[$astID].Path)"
+                    $Cx1QueriesByID[$astID].Severity = sevstr $q.Severity
+                } catch {}
             }
             if ( $row.Value.Mapped ) {
 				$Cx1QueriesByID[$astID].Mapped = $true
