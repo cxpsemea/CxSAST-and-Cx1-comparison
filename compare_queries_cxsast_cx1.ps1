@@ -212,8 +212,12 @@ function addCx1Query( $queries, $level, $language, $group, $query, $id ) {
 }
 
 function hashstr( $str ) {
-    $mystream = [IO.MemoryStream]::new([byte[]][char[]]$str)
-    (Get-FileHash -InputStream $mystream -Algorithm SHA256).Hash
+    if ( $str -eq "" ) { 
+        return ""
+    } else {
+        $mystream = [IO.MemoryStream]::new([byte[]][char[]]$str)
+        (Get-FileHash -InputStream $mystream -Algorithm SHA256).Hash
+    }
 }
 
 function MakeRow( $SastQ, $Cx1Q ) {
@@ -536,7 +540,7 @@ $Cx1Queries | foreach-object {
                 $q = getCx1QueryDetails $Cx1URL $Cx1Token "Cx" $Cx1QueriesByID["$($_.Id)"].Path "Failed to get details for Cx query $($Cx1QueriesByID[$astID].Path)"
                 $Cx1QueriesByID[$astID].Severity = sevstr $q.Severity
             } catch {
-                
+
             }
         }
     }
