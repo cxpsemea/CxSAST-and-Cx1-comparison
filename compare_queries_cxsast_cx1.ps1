@@ -215,8 +215,12 @@ function hashstr( $str ) {
     if ( $str -eq "" ) { 
         return ""
     } else {
-        $mystream = [IO.MemoryStream]::new([byte[]][char[]]$str)
-        (Get-FileHash -InputStream $mystream -Algorithm SHA256).Hash
+        try {
+            $mystream = [IO.MemoryStream]::new([byte[]][char[]]$str)
+            (Get-FileHash -InputStream $mystream -Algorithm SHA256).Hash
+        } catch {
+            Write-Output "Error hashing string: $str"
+        }
     }
 }
 
@@ -624,7 +628,7 @@ foreach ( $row in $Cx1QueriesByID.GetEnumerator() ) {
 
 
 $ctr = 0
-foreach ( $row in $FinalMapping | Sort-Object SAST_QueryID ) {
+foreach ( $row in $FinalMapping | Sort-Object { [int]($_.SAST_QueryID) ) {
     if ( ($row.Cx1_CorpSourceHash -ne "" -or $row.SAST_CorpSourceHash -ne "") -or -not $CorpOnly ) {
         if ( $ctr -eq 0 ) {
             Export-Csv -InputObject $row -Path $outfile
