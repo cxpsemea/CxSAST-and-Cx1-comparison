@@ -535,7 +535,7 @@ $Cx1Queries | foreach-object {
         $Cx1QueriesByID["$($_.Id)"].CorpName = $_.Name
 		$Cx1QueriesByID["$($_.Id)"].CorpSourceHash = hashstr $q.Source
 
-        if ( $CorpOnly ) {
+        if ( $CorpOnly -or $Cx1QueriesByID["$($_.Id)"].Severity -eq "" ) {
             try {
                 $q = getCx1QueryDetails $Cx1URL $Cx1Token "Cx" $Cx1QueriesByID["$($_.Id)"].Path "Failed to get details for Cx query $($Cx1QueriesByID[$astID].Path)"
                 $Cx1QueriesByID["$($_.Id)"].Severity = sevstr $q.Severity
