@@ -535,13 +535,9 @@ $Cx1Queries | foreach-object {
         $Cx1QueriesByID["$($_.Id)"].CorpName = $_.Name
 		$Cx1QueriesByID["$($_.Id)"].CorpSourceHash = hashstr $q.Source
 
-        if ( $CorpOnly -or $Cx1QueriesByID["$($_.Id)"].Severity -eq "" ) {
-            try {
-                $q = getCx1QueryDetails $Cx1URL $Cx1Token "Cx" $Cx1QueriesByID["$($_.Id)"].Path "Failed to get details for Cx query $($Cx1QueriesByID[$astID].Path)"
-                $Cx1QueriesByID["$($_.Id)"].Severity = sevstr $q.Severity
-            } catch {
-
-            }
+        if ( $CorpOnly ) {
+            $q = getCx1QueryDetails $Cx1URL $Cx1Token "Cx" $Cx1QueriesByID["$($_.Id)"].Path "Failed to get details for Cx query $($Cx1QueriesByID[$astID].Path)"
+            $Cx1QueriesByID["$($_.Id)"].Severity = sevstr $q.Severity
         }
     }
 }
@@ -603,6 +599,10 @@ foreach ( $row in $SASTQueriesByID.GetEnumerator() ) {
         $astID = "$($row.Value.AstID)"
 
         if ( $Cx1QueriesByID.ContainsKey($astID) ) {
+            if ( $Cx1QueriesByID[$astID].Severity -eq "" ) {
+                $q = getCx1QueryDetails $Cx1URL $Cx1Token "Cx" $Cx1QueriesByID["$($_.Id)"].Path "Failed to get details for Cx query $($Cx1QueriesByID[$astID].Path)"
+                $Cx1QueriesByID["$($_.Id)"].Severity = sevstr $q.Severity
+            }
             if ( $row.Value.Mapped ) {
 				$Cx1QueriesByID[$astID].Mapped = $true
 			}
