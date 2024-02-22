@@ -6,7 +6,8 @@
     [Parameter(Mandatory = $true)][string]$IAMUrl,
     [Parameter(Mandatory = $true)][string]$Cx1Tenant,
     [Parameter(Mandatory = $true)][string]$Cx1APIKey,
-    [Parameter(Mandatory = $false)][bool]$CorpOnly = $true
+    [Parameter(Mandatory = $false)][bool]$CorpOnly = $true,
+    [Parameter(Mandatory = $false)][bool]$WithSource = $false
 )
 
 Set-StrictMode -Version 2
@@ -41,12 +42,6 @@ function req($uri, $method, $token, $errorMessage, $body){
         }
         return $resp
     } catch {
-        log $_
-        $value = $_.Exception.Response.StatusCode.value__
-        $description = $_.Exception.Response.StatusDescription
-        log "StatusCode: ${value}" 
-        log "StatusDescription: ${description}" 
-        log "Request body was: $($body | ConvertTo-Json)"
         throw $errorMessage
     }
 }
@@ -101,6 +96,7 @@ function getSASTQueries($server, $token, $errorMessage){
 }
 
 function getCx1QueryDetails( $server, $token, $scope, $path, $errormessage ) {
+    log "Get details for $scope $path"
     $safe_path = $path.Replace( "/", "%2f" )
     $uri = "$($server)/api/cx-audit/queries/$scope/$safe_path"
     return req $uri "GET" $token $errormessage
@@ -211,8 +207,16 @@ function addCx1Query( $queries, $level, $language, $group, $query, $id ) {
 }
 
 function hashstr( $str ) {
-    $mystream = [IO.MemoryStream]::new([byte[]][char[]]$str)
-    (Get-FileHash -InputStream $mystream -Algorithm SHA256).Hash
+    if ( $str -eq "" ) { 
+        return ""
+    } else {
+        try {
+            $mystream = [IO.MemoryStream]::new([byte[]][char[]]$str)
+            (Get-FileHash -InputStream $mystream -Algorithm SHA256).Hash
+        } catch {
+            "Too long to hash"
+        }
+    }
 }
 
 function MakeRow( $SastQ, $Cx1Q ) {
@@ -234,6 +238,7 @@ function MakeRow( $SastQ, $Cx1Q ) {
 		SAST_CorpQueryName = ""
         SAST_CorpSeverity = ""
         SAST_CorpSourceHash = ""
+        SAST_CorpSource = ""
 
         Cx1_QueryID = ""
         Cx1_Language = ""
@@ -243,6 +248,7 @@ function MakeRow( $SastQ, $Cx1Q ) {
 		Cx1_CorpQueryName = ""
         Cx1_CorpSeverity = ""
         Cx1_CorpSourceHash = ""
+        Cx1_CorpSource = ""
     }
 
     if ( $null -ne $SastQ ) {
@@ -255,6 +261,7 @@ function MakeRow( $SastQ, $Cx1Q ) {
 		$row.SAST_CorpQueryName = $SastQ.CorpName
         $row.SAST_CorpSeverity = $SastQ.CorpSeverity
         $row.SAST_CorpSourceHash = $SastQ.CorpSourceHash
+        $row.SAST_CorpSource = $SastQ.CorpSource
     }
 
     if ( $null -ne $Cx1Q ) {
@@ -266,6 +273,7 @@ function MakeRow( $SastQ, $Cx1Q ) {
 		$row.Cx1_CorpQueryName = $Cx1Q.CorpName
         $row.Cx1_CorpSeverity = $Cx1Q.CorpSeverity
         $row.Cx1_CorpSourceHash = $Cx1Q.CorpSourceHash
+        $row.Cx1_CorpSource = $Cx1Q.CorpSource
     }
 
     if ( ($null -ne $SastQ -and $null -eq $Cx1Q) -or ($null -eq $SastQ -and $null -ne $Cx1Q) ) {
@@ -322,6 +330,11 @@ if ( $CorpOnly ) {
     log "`t`$CorpOnly = true (will compare only corporate-level queries)"
 } else {
     log "`t`$CorpOnly = false (will compare product-default- and corporate-level queries)"
+}
+if ( $WithSource ) {
+    log "`t`$WithSource = true (will include the query source code in the excel)"
+} else {
+    log "`t`$WithSource = false (will not include the query source code in the excel)"
 }
 log ""
 
@@ -389,6 +402,7 @@ $SASTQueries.CxWSQueryGroup | foreach-object {
 				CorpName = ""
                 CorpSeverity = ""
                 CorpSourceHash = ""
+                CorpSource = ""
             }
             if ( $MappedIDs.ContainsKey( $_.QueryId ) ) {
                 $SASTQueriesByID["$($_.QueryId)"].AstID = $MappedIDs["$($_.QueryId)"]
@@ -434,9 +448,13 @@ $SASTQueries.CxWSQueryGroup | foreach-object {
 					CorpName = ""
                     CorpSeverity = ""
                     CorpSourceHash = hashstr $_.Source
+                    CorpSource = ""
                 }
             }
 
+            if ( $WithSource ) {
+                $SASTQueriesByID[$baseQueryId].CorpSource = $_.Source
+            }
             
             $SASTQueriesByID[$baseQueryId].CorpID = $_.QueryId
             $SASTQueriesByID[$baseQueryId].CorpSeverity = sevstr $_.Severity
@@ -480,9 +498,10 @@ $Cx1Queries | foreach-object {
             CorpSeverity = ""
 			CorpName = ""
             CorpSourceHash = ""
+            CorpSource = ""
         }
 
-		if ( -not $_.isExecutable ) {
+		if ( -not $_.isExecutable -and -not $CorpOnly ) {
 			$q = getCx1QueryDetails $Cx1URL $Cx1Token "Cx" $Cx1QueriesByID["$($_.Id)"].Path "Failed to get details for Cx query $($Cx1QueriesByID[$astID].Path)"
 			$Cx1QueriesByID[$astID].Severity = sevstr $q.Severity
 		}
@@ -522,13 +541,26 @@ $Cx1Queries | foreach-object {
                 CorpSeverity = ""
 				CorpName = ""
                 CorpSourceHash = ""
+                CorpSource = ""
             }    
         }
 
-        $q = getCx1QueryDetails $Cx1URL $Cx1Token "Corp" $Cx1QueriesByID["$($_.Id)"].Path "Failed to get details for CORP query $($Cx1QueriesByID["$($_.Id)"].Path)"
+        $q = getCx1QueryDetails $Cx1URL $Cx1Token "Corp" $_.path "Failed to get details for CORP query $($_.path)"
         $Cx1QueriesByID["$($_.Id)"].CorpSeverity = sevstr $q.Severity
         $Cx1QueriesByID["$($_.Id)"].CorpName = $_.Name
 		$Cx1QueriesByID["$($_.Id)"].CorpSourceHash = hashstr $q.Source
+
+        if ( $WithSource ) {
+            $Cx1QueriesByID["$($_.Id)"].CorpSource = $q.Source
+        }
+
+        if ( $CorpOnly ) {
+            try {
+                $q = getCx1QueryDetails $Cx1URL $Cx1Token "Cx" $Cx1QueriesByID["$($_.Id)"].Path "Failed to get details for Cx query $($Cx1QueriesByID["$($_.Id)"].Path)"
+                $sev = sevstr $q.Severity
+                $Cx1QueriesByID["$($_.Id)"].Severity = $sev
+            } catch {}
+        }
     }
 }
 
@@ -579,6 +611,7 @@ $Cx1DeprecatedQuery = [pscustomobject]@{
     CorpSeverity = ""
 	CorpName = ""
     CorpSourceHash = ""
+    CorpSource = ""
 }    
 
 $FinalMapping = @()
@@ -589,6 +622,14 @@ foreach ( $row in $SASTQueriesByID.GetEnumerator() ) {
         $astID = "$($row.Value.AstID)"
 
         if ( $Cx1QueriesByID.ContainsKey($astID) ) {
+            if ( $Cx1QueriesByID[$astID].Severity -eq "" -and (-Not $CorpOnly -or $row.Value.CorpID -ne "") ) {
+                try {
+                    $q = getCx1QueryDetails $Cx1URL $Cx1Token "Cx" $Cx1QueriesByID[$astID].Path "Failed to get details for Cx query $($Cx1QueriesByID[$astID].Path)"
+                    $Cx1QueriesByID[$astID].Severity = sevstr $q.Severity
+                } catch {
+                    log $_.Exception
+                }
+            }
             if ( $row.Value.Mapped ) {
 				$Cx1QueriesByID[$astID].Mapped = $true
 			}
@@ -610,7 +651,7 @@ foreach ( $row in $Cx1QueriesByID.GetEnumerator() ) {
 
 
 $ctr = 0
-foreach ( $row in $FinalMapping ) {
+foreach ( $row in $FinalMapping | Sort-Object { [int]($_.SAST_QueryID) } ) {
     if ( ($row.Cx1_CorpSourceHash -ne "" -or $row.SAST_CorpSourceHash -ne "") -or -not $CorpOnly ) {
         if ( $ctr -eq 0 ) {
             Export-Csv -InputObject $row -Path $outfile
@@ -623,12 +664,12 @@ foreach ( $row in $FinalMapping ) {
     if ( $row.SAST_CorpQueryID -ne "" -and -not $MappedIDs.ContainsKey( $row.SAST_CorpQueryID ) -and $row.Cx1_QueryID -ne "" ) {
         #Write-Output "Add corp to mapping: $($row.SAST_CorpQueryID) -> $($row.Cx1_QueryID)"
         $MappedIDs[$row.SAST_CorpQueryID] = $row.Cx1_QueryID
-        if ( $row.SAST_QueryID -ne "" ) {
+        if ( $row.SAST_QueryID -ne $row.SAST_CorpQueryID ) {
             $origin = "Product query #$($row.SAST_QueryID) $($row.SAST_Language) -> $($row.SAST_Group) -> $($row.SAST_Query) corp override"
         } else {
             $origin = "New custom corp query #$($row.SAST_CorpQueryID) $($row.SAST_Language) -> $($row.SAST_Group) -> $($row.SAST_Query)"
         }
-        $QueryMappings.mappings += @{
+        $QueryMappings.mappings += [pscustomobject]@{
             astID = $row.Cx1_QueryID
             sastID = $row.SAST_CorpQueryID
             origin = $origin
@@ -636,12 +677,27 @@ foreach ( $row in $FinalMapping ) {
     }
 }
 
+$blah = ($QueryMappings.mappings | Sort-Object -Property { [int] $_.sastID } )
+$QueryMappings.mappings = $blah
+
+
 $QueryMappings | ConvertTo-Json | Out-File "mappings.json"
 if ( $QueryMappings.mappings.length -ne $QueryMappingsCount ) {
-    Write-Output "Generated a mappings.json file with $($QueryMappings.mappings.length - $QueryMappingsCount) custom queries mapped"
+    log "Generated a mappings.json file with $($QueryMappings.mappings.length - $QueryMappingsCount) custom queries mapped"
+
+    log "The following queries were added to the mapping:"
+
+    $counter = 0
+    $QueryMappings.mappings | Sort-Object -Property { [uint64] $_.astID }, { [int] $_.sastID } | foreach-object  {
+        if ( $_ | Get-Member origin ) {
+            $counter++
+            log "$($counter): $($_.origin) $($_.sastID) -> $($_.astID)"
+        }
+    }
 } else {
     Write-Output "Saved the default query mapping provided by Cx1 to mappings.json"
 }
+
 
 log "Finished"
 
