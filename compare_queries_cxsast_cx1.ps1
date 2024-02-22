@@ -6,7 +6,8 @@
     [Parameter(Mandatory = $true)][string]$IAMUrl,
     [Parameter(Mandatory = $true)][string]$Cx1Tenant,
     [Parameter(Mandatory = $true)][string]$Cx1APIKey,
-    [Parameter(Mandatory = $false)][bool]$CorpOnly = $true
+    [Parameter(Mandatory = $false)][bool]$CorpOnly = $true,
+    [Parameter(Mandatory = $false)][bool]$WithSource = $false
 )
 
 Set-StrictMode -Version 2
@@ -237,6 +238,7 @@ function MakeRow( $SastQ, $Cx1Q ) {
 		SAST_CorpQueryName = ""
         SAST_CorpSeverity = ""
         SAST_CorpSourceHash = ""
+        SAST_CorpSource = ""
 
         Cx1_QueryID = ""
         Cx1_Language = ""
@@ -246,6 +248,7 @@ function MakeRow( $SastQ, $Cx1Q ) {
 		Cx1_CorpQueryName = ""
         Cx1_CorpSeverity = ""
         Cx1_CorpSourceHash = ""
+        Cx1_CorpSource = ""
     }
 
     if ( $null -ne $SastQ ) {
@@ -258,6 +261,7 @@ function MakeRow( $SastQ, $Cx1Q ) {
 		$row.SAST_CorpQueryName = $SastQ.CorpName
         $row.SAST_CorpSeverity = $SastQ.CorpSeverity
         $row.SAST_CorpSourceHash = $SastQ.CorpSourceHash
+        $row.SAST_CorpSource = $SastQ.CorpSource
     }
 
     if ( $null -ne $Cx1Q ) {
@@ -269,6 +273,7 @@ function MakeRow( $SastQ, $Cx1Q ) {
 		$row.Cx1_CorpQueryName = $Cx1Q.CorpName
         $row.Cx1_CorpSeverity = $Cx1Q.CorpSeverity
         $row.Cx1_CorpSourceHash = $Cx1Q.CorpSourceHash
+        $row.Cx1_CorpSource = $Cx1Q.CorpSource
     }
 
     if ( ($null -ne $SastQ -and $null -eq $Cx1Q) -or ($null -eq $SastQ -and $null -ne $Cx1Q) ) {
@@ -325,6 +330,11 @@ if ( $CorpOnly ) {
     log "`t`$CorpOnly = true (will compare only corporate-level queries)"
 } else {
     log "`t`$CorpOnly = false (will compare product-default- and corporate-level queries)"
+}
+if ( $WithSource ) {
+    log "`t`$WithSource = true (will include the query source code in the excel)"
+} else {
+    log "`t`$WithSource = false (will not include the query source code in the excel)"
 }
 log ""
 
@@ -392,6 +402,7 @@ $SASTQueries.CxWSQueryGroup | foreach-object {
 				CorpName = ""
                 CorpSeverity = ""
                 CorpSourceHash = ""
+                CorpSource = ""
             }
             if ( $MappedIDs.ContainsKey( $_.QueryId ) ) {
                 $SASTQueriesByID["$($_.QueryId)"].AstID = $MappedIDs["$($_.QueryId)"]
@@ -437,9 +448,13 @@ $SASTQueries.CxWSQueryGroup | foreach-object {
 					CorpName = ""
                     CorpSeverity = ""
                     CorpSourceHash = hashstr $_.Source
+                    CorpSource = ""
                 }
             }
 
+            if ( $WithSource ) {
+                $SASTQueriesByID[$baseQueryId].CorpSource = $_.Source
+            }
             
             $SASTQueriesByID[$baseQueryId].CorpID = $_.QueryId
             $SASTQueriesByID[$baseQueryId].CorpSeverity = sevstr $_.Severity
@@ -483,6 +498,7 @@ $Cx1Queries | foreach-object {
             CorpSeverity = ""
 			CorpName = ""
             CorpSourceHash = ""
+            CorpSource = ""
         }
 
 		if ( -not $_.isExecutable -and -not $CorpOnly ) {
@@ -525,6 +541,7 @@ $Cx1Queries | foreach-object {
                 CorpSeverity = ""
 				CorpName = ""
                 CorpSourceHash = ""
+                CorpSource = ""
             }    
         }
 
@@ -532,6 +549,10 @@ $Cx1Queries | foreach-object {
         $Cx1QueriesByID["$($_.Id)"].CorpSeverity = sevstr $q.Severity
         $Cx1QueriesByID["$($_.Id)"].CorpName = $_.Name
 		$Cx1QueriesByID["$($_.Id)"].CorpSourceHash = hashstr $q.Source
+
+        if ( $WithSource ) {
+            $Cx1QueriesByID["$($_.Id)"].CorpSource = $q.Source
+        }
 
         if ( $CorpOnly ) {
             try {
@@ -590,6 +611,7 @@ $Cx1DeprecatedQuery = [pscustomobject]@{
     CorpSeverity = ""
 	CorpName = ""
     CorpSourceHash = ""
+    CorpSource = ""
 }    
 
 $FinalMapping = @()
