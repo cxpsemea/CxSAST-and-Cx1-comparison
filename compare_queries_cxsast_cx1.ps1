@@ -642,7 +642,7 @@ foreach ( $row in $FinalMapping | Sort-Object { [int]($_.SAST_QueryID) } ) {
     if ( $row.SAST_CorpQueryID -ne "" -and -not $MappedIDs.ContainsKey( $row.SAST_CorpQueryID ) -and $row.Cx1_QueryID -ne "" ) {
         #Write-Output "Add corp to mapping: $($row.SAST_CorpQueryID) -> $($row.Cx1_QueryID)"
         $MappedIDs[$row.SAST_CorpQueryID] = $row.Cx1_QueryID
-        if ( $row.SAST_QueryID -ne "" ) {
+        if ( $row.SAST_QueryID -ne $row.SAST_CorpQueryID ) {
             $origin = "Product query #$($row.SAST_QueryID) $($row.SAST_Language) -> $($row.SAST_Group) -> $($row.SAST_Query) corp override"
         } else {
             $origin = "New custom corp query #$($row.SAST_CorpQueryID) $($row.SAST_Language) -> $($row.SAST_Group) -> $($row.SAST_Query)"
