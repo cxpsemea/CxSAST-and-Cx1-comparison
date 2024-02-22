@@ -545,10 +545,7 @@ $Cx1Queries | foreach-object {
             }    
         }
 
-        $q = getCx1QueryDetails $Cx1URL $Cx1Token "Corp" $Cx1QueriesByID["$($_.Id)"].Path "Failed to get details for CORP query $($Cx1QueriesByID["$($_.Id)"].Path)"
-        if ( $q.Level -ne "Corp" ) {
-            Write-Output "`n`n Tried to get this source but it's not CORP???"
-        }
+        $q = getCx1QueryDetails $Cx1URL $Cx1Token "Corp" $_.path "Failed to get details for CORP query $($_.path)"
         $Cx1QueriesByID["$($_.Id)"].CorpSeverity = sevstr $q.Severity
         $Cx1QueriesByID["$($_.Id)"].CorpName = $_.Name
 		$Cx1QueriesByID["$($_.Id)"].CorpSourceHash = hashstr $q.Source
