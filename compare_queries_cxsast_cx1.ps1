@@ -647,7 +647,7 @@ foreach ( $row in $FinalMapping | Sort-Object { [int]($_.SAST_QueryID) } ) {
         } else {
             $origin = "New custom corp query #$($row.SAST_CorpQueryID) $($row.SAST_Language) -> $($row.SAST_Group) -> $($row.SAST_Query)"
         }
-        $QueryMappings.mappings += @{
+        $QueryMappings.mappings += [pscustomobject]@{
             astID = $row.Cx1_QueryID
             sastID = $row.SAST_CorpQueryID
             origin = $origin
@@ -661,10 +661,21 @@ $QueryMappings.mappings = $blah
 
 $QueryMappings | ConvertTo-Json | Out-File "mappings.json"
 if ( $QueryMappings.mappings.length -ne $QueryMappingsCount ) {
-    Write-Output "Generated a mappings.json file with $($QueryMappings.mappings.length - $QueryMappingsCount) custom queries mapped"
+    log "Generated a mappings.json file with $($QueryMappings.mappings.length - $QueryMappingsCount) custom queries mapped"
+
+    log "The following queries were added to the mapping:"
+
+    $counter = 0
+    $QueryMappings.mappings | Sort-Object -Property { [uint64] $_.astID }, { [int] $_.sastID } | foreach-object  {
+        if ( $_ | Get-Member origin ) {
+            $counter++
+            log "$($counter): $($_.origin) $($_.sastID) -> $($_.astID)"
+        }
+    }
 } else {
     Write-Output "Saved the default query mapping provided by Cx1 to mappings.json"
 }
+
 
 log "Finished"
 
