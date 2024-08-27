@@ -344,7 +344,7 @@ $Cx1Queries | foreach-object {
     $level = $_.level
     $group = $_.group
 
-    if ( $level -ieq "CORP" -or $level -ieq "CX" ) {
+    if ( $level -ieq "CORP" -or $level -ieq "CX" -or $level -ieq "TENANT" ) {
         addQuery $AllCx1Queries $level $language $group $_.name $_.Id
         $Cx1QueriesByID["$($_.Id)"] = [pscustomobject]@{
             Language = $language
